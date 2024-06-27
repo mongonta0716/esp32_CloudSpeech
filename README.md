@@ -29,3 +29,19 @@ Set network parameter and your account information in network_param.h.<br>
 Say to the microphone and see serial monitor.
 
 
+## How to curl
+YOUR_・・・の値を書き換えてください。アクセストークンはログに出力されるものをコピーしてください。一定時間で期限切れするので期限が切れたら更新する必要があります。
+```
+curl -s -H "Content-Type: application/json" \
+    -H "x-goog-user-project: YOUR_PROJECT_ID" \
+    -H "Authorization: Bearer YOUR_ACCESSTOKEN" \
+    https://speech.googleapis.com/v1/speech:recognize \
+    -d @request.json
+```
+
+### request.json
+おはようございますというWAVファイルをサンプルで登録しました。
+
+[request.json](./request.json)
+
+
