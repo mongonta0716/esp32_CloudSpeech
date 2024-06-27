@@ -1,15 +1,14 @@
+#include <M5Unified.h>
 #include "Audio.h"
 
-Audio::Audio(MicType micType) {
-  wavData = new char*[wavDataSize/dividedWavDataSize];
-  for (int i = 0; i < wavDataSize/dividedWavDataSize; ++i) wavData[i] = new char[dividedWavDataSize];
-  i2s = new I2S(micType);
+Audio::Audio() {
+  wavData = (typeof(wavData))heap_caps_malloc(record_size * sizeof(int16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+//  wavData = (typeof(wavData))heap_caps_malloc(record_size * sizeof(int16_t),  MALLOC_CAP_8BIT);
+  memset(wavData, 0 , record_size * sizeof(int16_t));
 }
 
 Audio::~Audio() {
-  for (int i = 0; i < wavDataSize/dividedWavDataSize; ++i) delete[] wavData[i];
-  delete[] wavData;
-  delete i2s;
+  delete wavData;
 }
 
 void Audio::CreateWavHeader(byte* header, int waveDataSize){
@@ -62,25 +61,13 @@ void Audio::CreateWavHeader(byte* header, int waveDataSize){
 
 void Audio::Record() {
   CreateWavHeader(paddedHeader, wavDataSize);
-  int bitBitPerSample = i2s->GetBitPerSample();
-  if (bitBitPerSample == 16) {
-    for (int j = 0; j < wavDataSize/dividedWavDataSize; ++j) {
-      i2s->Read(i2sBuffer, i2sBufferSize/2);
-      for (int i = 0; i < i2sBufferSize/8; ++i) {
-        wavData[j][2*i] = i2sBuffer[4*i + 2];
-        wavData[j][2*i + 1] = i2sBuffer[4*i + 3];
-      }
-    }
+  M5.Mic.begin();
+  int rec_record_idx;
+  for (rec_record_idx = 0; rec_record_idx < record_number; rec_record_idx++) {
+    auto data = &wavData[rec_record_idx * record_length];
+    M5.Mic.record(data, record_length, record_samplerate);
   }
-  else if (bitBitPerSample == 32) {
-    for (int j = 0; j < wavDataSize/dividedWavDataSize; ++j) {
-      i2s->Read(i2sBuffer, i2sBufferSize);
-      for (int i = 0; i < i2sBufferSize/8; ++i) {
-        wavData[j][2*i] = i2sBuffer[8*i + 2];
-        wavData[j][2*i + 1] = i2sBuffer[8*i + 3];
-      }
-    }
-  }
+  M5.Mic.end();
 }
 
 

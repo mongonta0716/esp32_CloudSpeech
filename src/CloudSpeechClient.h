@@ -11,12 +11,14 @@ enum Authentication {
 class CloudSpeechClient {
   WiFiClientSecure client;
   void PrintHttpBody2(Audio* audio);
+  String key;
+  String project_id;
   Authentication authentication;
-
 public:
-  CloudSpeechClient(Authentication authentication);
+  CloudSpeechClient(const char* root_ca, Authentication authentication, String project_id);
+  CloudSpeechClient(const char* root_ca, const char* api_key);
   ~CloudSpeechClient();
-  void Transcribe(Audio* audio);
+  String Transcribe(Audio* audio, String access_taken = "");
 };
 
 #endif // _CLOUDSPEECHCLIENT_H
