@@ -6,6 +6,8 @@
 #include "network_param.h"
 #include <ESP_Signer.h>
 
+CloudSpeechClient* cloud_speech_client;
+
 SignerConfig signer_config;
 void tokenStatusCallback(TokenInfo info);
 
@@ -59,14 +61,22 @@ void setupWiFi() {
   }
 }
 
+void initScreen() {
+  M5.Display.clear();
+  M5.Display.setCursor(0, 0);
+  M5.Display.println("BtnA: OAuth  STT, BtnB: APIKey STT, BtnC: ClearLCD");
+}
 
 void setup() {
   auto cfg = M5.config();
   M5.begin(cfg);
-  M5.Display.setTextSize(3);
+  M5.Log.setLogLevel(m5::log_target_display, ESP_LOG_INFO);
+  M5.Display.setTextFont(&fonts::efontJA_12);
+  M5.setLogDisplayIndex(0);
+  M5.Log.setSuffix(m5::log_target_display, "");
+  M5.Display.setTextWrap(true, true);
   setupWiFi();
-  M5.Display.clear();
-  M5.Display.println("Press BtnA: Record");
+  initScreen();
 
   auto micConfig = M5.Mic.config();
   micConfig.stereo = false;
@@ -76,6 +86,7 @@ void setup() {
   signer_config.service_account.data.client_email = CLIENT_EMAIL;
   signer_config.service_account.data.project_id = PROJECT_ID;
   signer_config.service_account.data.private_key = PRIVATE_KEY;
+
 
   /** Expired period in seconds (optional).
    * Default is 3600 sec.
@@ -89,13 +100,13 @@ void setup() {
   /** Assign the API scopes (required)
    * Use space or comma to separate the scope.
    */
-  signer_config.signer.tokens.scope = "https://www.googleapis.com/auth/cloud-platform, https://www.googleapis.com/auth/userinfo.email";
+  signer_config.signer.tokens.scope = "https://www.googleapis.com/auth/cloud-platform, https://www.googleapis.com/auth/userinfo.email, https://www.googleapis.com/auth/appengine.admin";
 
   /** Assign the callback function for token ggeneration status (optional) */
   signer_config.token_status_callback = tokenStatusCallback;
 
   /** If Google Root certificate data provided */
-  //signer_config.cert.data = rootCACert;
+  signer_config.cert.data = rootCACert;
 
   /* Create token */
   Signer.begin(&signer_config);
@@ -105,24 +116,55 @@ void setup() {
 
 void loop() {
   M5.update();
+  // OAuth認証を使用する。
   if (M5.BtnA.wasClicked()) {
     M5.Speaker.begin();
-    M5.Speaker.tone(2000, 100);
-    delay(100);
+    M5.Speaker.tone(2000, 200);
+    delay(300);
     M5.Mic.begin();
-    M5.Display.println("Record start!");
+    uint32_t temp_millis;
+    uint32_t start_millis = millis();
+    M5_LOGI("OAuth Mode Record start: %d\n", start_millis);
     Audio* audio = new Audio();
     audio->Record();
-    CloudSpeechClient* cloudSpeechClient = new CloudSpeechClient(rootCACert, USE_ACCESSTOKEN, PROJECT_ID);
-    //CloudSpeechClient* cloudSpeechClient = new CloudSpeechClient(rootCACert, USE_APIKEY, ApiKey);
+    M5_LOGI("Record End: %d\n", millis() - start_millis);
     
+    cloud_speech_client = new CloudSpeechClient(rootCACert, USE_ACCESSTOKEN, PROJECT_ID);
+    temp_millis = millis();
+    M5_LOGI("Transcribe start: %d\n", temp_millis);
     Signer.tokenReady();
-    cloudSpeechClient->Transcribe(audio, Signer.accessToken());
-    Serial.println("----------------------------------------");
-    Serial.println(Signer.accessToken());
-    Serial.println("----------------------------------------");
-    delete cloudSpeechClient;
+    cloud_speech_client->Transcribe(audio, Signer.accessToken());
+    uint32_t response_millis = millis() - temp_millis;
+    M5_LOGI("CloudSpeechResponse: %d\n", response_millis);
+    M5_LOGI("Total Response: %d\n", millis() - start_millis);
+    delete cloud_speech_client;
     delete audio;
+  }
+  // API認証を使用する。
+  if (M5.BtnB.wasClicked()) {
+    M5.Speaker.begin();
+    M5.Speaker.tone(1000, 200);
+    delay(300);
+    M5.Mic.begin();
+    uint32_t temp_millis;
+    uint32_t start_millis = millis();
+    M5_LOGI("APIKey STT Record start: %d\n", start_millis);
+    Audio* audio = new Audio();
+    audio->Record();
+    M5_LOGI("Record End: %d\n", millis() - start_millis);
+    
+    cloud_speech_client = new CloudSpeechClient(rootCACert, USE_APIKEY, ApiKey);
+    temp_millis = millis();
+    M5_LOGI("Transcribe start: %d\n", temp_millis);
+    cloud_speech_client->Transcribe(audio);
+    uint32_t response_millis = millis() - temp_millis;
+    M5_LOGI("CloudSpeechResponse: %d\n", response_millis);
+    M5_LOGI("Total Response: %d\n", millis() - start_millis);
+    delete cloud_speech_client;
+    delete audio;
+  }
+  if (M5.BtnC.wasClicked()) {
+    initScreen();
   }
 }
 

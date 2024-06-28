@@ -2,9 +2,7 @@
 //#include "network_param.h"
 #include <base64.h>
 #include <ArduinoJson.h>
-#define STREAMUTILS_ENABLE_EEPROM 0
-#include <StreamUtils.h>
-
+#include <M5Unified.h>
 String LANG_CODE = "ja-JP";
 
 namespace {
@@ -22,20 +20,12 @@ CloudSpeechClient::CloudSpeechClient(const char* root_ca, Authentication authent
   }
   client.setCACert(root_ca);
   client.setTimeout( 10000 ); 
-  if (!client.connect(API_HOST, API_PORT)) {
-    Serial.println("Connection failed!");
-  } else {
-    Serial.println("Connected!");
-  }
 
 }
 CloudSpeechClient::CloudSpeechClient(const char* root_ca, const char* api_key) : client(), key(api_key) {
 //  this->authentication = authentication;
   client.setCACert(root_ca);
   client.setTimeout( 10000 ); 
-  if (!client.connect(API_HOST, API_PORT)) {
-    Serial.println("Connection failed!");
-  }
 }
 
 CloudSpeechClient::~CloudSpeechClient() {
@@ -56,6 +46,9 @@ void CloudSpeechClient::PrintHttpBody2(Audio* audio) {
 }
 
 String CloudSpeechClient::Transcribe(Audio* audio, String access_token) {
+  if (!client.connect(API_HOST, API_PORT)) {
+    M5_LOGE("Client Connect Error");
+  }
   //String HttpBody1 = "{\"config\":{\"encoding\":\"FLAC\",\"sampleRateHertz\":16000,\"languageCode\":\""+LANG_CODE+"\",\"enableWordTimeOffsets\":\"false\"},\"audio\":{\"uri\":\"gs://cloud-samples-tests/speech/brooklyn.flac\"}}\r\n\r\n";
   String HttpBody1 = "{\"config\":{\"encoding\":\"LINEAR16\",\"sampleRateHertz\":\"16000\",\"languageCode\":\""+LANG_CODE+"\",\"enableWordTimeOffsets\":\"false\"},\"audio\":{\"content\":\"";
   String HttpBody3 = "\"}}\r\n\r\n";
@@ -71,28 +64,16 @@ String CloudSpeechClient::Transcribe(Audio* audio, String access_token) {
     HttpHeaders = String("POST /v1/speech:recognize HTTP/1.1\r\nx-goog-user-project: " + project_id + "\r\nHost: speech.googleapis.com\r\nContent-Type: application/json\r\nContent-Length: " + ContentLength + "\r\nAuthorization: Bearer ")
       + access_token + String("\r\n\r\n");
   }
-  Serial.println("client print\n" + HttpHeaders);
-  Serial.print(HttpBody1);
   client.print(HttpHeaders);
   client.print(HttpBody1);
   PrintHttpBody2(audio);
   client.print(HttpBody3);
-  client.flush();
-  Serial.println(HttpBody3);
-  Serial.println("End of Client print");
-  Serial.println("wait client available");
-  while (!client.available()) {
-    Serial.printf("client wait:%d\n", client.connected());
-    delay(1000);
-  };
+  while (!client.available());
   // Skip HTTP headers
-  Serial.println("Skip headers");
   char endOfHeaders[] = "\r\n\r\n";
   if (!client.find(endOfHeaders)) {
     Serial.println(F("Invalid response"));
     return String("");
-  } else {
-    Serial.println("Find EOH");
   }
   if(client.available())client.read();
   if(client.available())client.read();
@@ -118,12 +99,13 @@ String CloudSpeechClient::Transcribe(Audio* audio, String access_token) {
     Serial.print("\n認識結果：");
     if(text) {
       result = String (text);
-      Serial.println((char *)text);
+      M5.Display.printf("認識結果:%s\n", text);
     }
     else {
-      Serial.println("NG");
+      M5_LOGI("NG");
     }
   }
+  client.stop();
   return result;
 }
 
