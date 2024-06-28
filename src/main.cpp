@@ -114,6 +114,8 @@ void loop() {
     Audio* audio = new Audio();
     audio->Record();
     CloudSpeechClient* cloudSpeechClient = new CloudSpeechClient(rootCACert, USE_ACCESSTOKEN, PROJECT_ID);
+    //CloudSpeechClient* cloudSpeechClient = new CloudSpeechClient(rootCACert, USE_APIKEY, ApiKey);
+    
     Signer.tokenReady();
     cloudSpeechClient->Transcribe(audio, Signer.accessToken());
     Serial.println("----------------------------------------");
