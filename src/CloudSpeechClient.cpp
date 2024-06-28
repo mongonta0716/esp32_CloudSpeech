@@ -44,8 +44,8 @@ CloudSpeechClient::~CloudSpeechClient() {
 
 void CloudSpeechClient::PrintHttpBody2(Audio* audio) {
   String enc = base64::encode(audio->paddedHeader, sizeof(audio->paddedHeader));
-  //enc.replace("\n", "");  // delete last "\n"
-  //client.print(enc);      // HttpBody2
+  enc.replace("\n", "");  // delete last "\n"
+  client.print(enc);      // HttpBody2
   char* wavData = (char*)audio->wavData;
   for (int j = 0; j < audio->record_number; j++) {
     enc = base64::encode((byte*)&wavData[j*audio->record_length*2], audio->record_length*2);
@@ -68,8 +68,8 @@ String CloudSpeechClient::Transcribe(Audio* audio, String access_token) {
     HttpHeaders = String("POST ") + String(API_PATH) + String("?key=") + key
       + String(" HTTP/1.1\r\nHost: ") + String(API_HOST) + String("\r\nContent-Type: application/json\r\nContent-Length: ") + ContentLength + String("\r\n\r\n");
   } else {
-    HttpHeaders = String("POST /v1/speech:recognize HTTP/1.1\r\nx-goog-user-project: " + project_id + "\r\nHost: speech.googleapis.com\r\nContent-Type: application/json\r\nContent-Length: " + httpBody2Length + "\r\n\"Authorization: Bearer ")
-      + access_token + String("\"\r\n\r\n\r\n");
+    HttpHeaders = String("POST /v1/speech:recognize HTTP/1.1\r\nx-goog-user-project: " + project_id + "\r\nHost: speech.googleapis.com\r\nContent-Type: application/json\r\nContent-Length: " + ContentLength + "\r\nAuthorization: Bearer ")
+      + access_token + String("\r\n\r\n");
   }
   Serial.println("client print\n" + HttpHeaders);
   Serial.print(HttpBody1);
@@ -99,10 +99,8 @@ String CloudSpeechClient::Transcribe(Audio* audio, String access_token) {
   if(client.available())client.read();
 
   // Parse JSON object
-  StaticJsonDocument<2048> jsonBuffer;
-  Serial.println(client.readString());
-  ReadLoggingStream loggingStream(client, Serial);
-  DeserializationError error = deserializeJson(jsonBuffer,loggingStream);
+  StaticJsonDocument<500> jsonBuffer;
+  DeserializationError error = deserializeJson(jsonBuffer,client);
 //root.prettyPrintTo(Serial); //Serial.println("");
   String result = "";
   if (error) {
